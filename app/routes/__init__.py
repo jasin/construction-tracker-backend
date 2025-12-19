@@ -13,6 +13,7 @@ from app.routes import (
     rfis,
     submittals,
     tasks,
+    user_activity,
     users,
 )
 
@@ -29,5 +30,6 @@ api_router.include_router(submittals.router)
 api_router.include_router(change_orders.router)
 api_router.include_router(documents.router)
 api_router.include_router(activity_logs.router)
+api_router.include_router(user_activity.router)  # User activity tracking
 
 __all__ = ["api_router"]
