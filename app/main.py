@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.routes import api_router
 
 # Note: Database tables should be created via Alembic migrations, not on startup
 # This allows the app to start even without a database connection
@@ -23,10 +24,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# TODO: Include routers when created
-# app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
-# app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
-# app.include_router(websockets.router, prefix="/ws", tags=["websockets"])
+# Include all API routes
+app.include_router(api_router)
 
 
 @app.get("/")

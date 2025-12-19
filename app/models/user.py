@@ -9,6 +9,7 @@ class User(BaseModel):
     __tablename__ = "users"
 
     email = Column(String, unique=True, nullable=False, index=True)
+    password_hash = Column(String, nullable=False)  # Hashed password
     name = Column(String, nullable=False)
     photo = Column(String, nullable=True)  # URL to profile photo
     role = Column(
