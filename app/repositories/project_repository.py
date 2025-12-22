@@ -16,7 +16,7 @@ class ProjectRepository(BaseRepository[Project]):
     """Repository for Project-specific database operations."""
 
     def __init__(self, db: Session):
-        super().__init__(db, Project)
+        super().__init__(Project, db)
 
     def get_by_client_id(
         self, client_id: str, skip: int = 0, limit: int = 100

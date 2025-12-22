@@ -16,7 +16,7 @@ class UserRepository(BaseRepository[User]):
     """Repository for User-specific database operations."""
 
     def __init__(self, db: Session):
-        super().__init__(db, User)
+        super().__init__(User, db)
 
     def get_by_email(self, email: str) -> Optional[User]:
         """

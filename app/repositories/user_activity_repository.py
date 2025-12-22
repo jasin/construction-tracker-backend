@@ -11,7 +11,7 @@ class UserActivityRepository(BaseRepository[UserActivity]):
     """Repository for user activity operations"""
 
     def __init__(self, db: Session):
-        super().__init__(db, UserActivity)
+        super().__init__(UserActivity, db)
 
     def get_or_create(
         self, user_id: str, project_id: str, created_by: Optional[str] = None

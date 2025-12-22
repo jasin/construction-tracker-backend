@@ -15,9 +15,9 @@ class BaseRepository(Generic[ModelType]):
     Mirrors the pattern from Firebase repositories in the Vue app.
     """
 
-    def __init__(self, db: Session, model: Type[ModelType]):
-        self.db = db
+    def __init__(self, model: Type[ModelType], db: Session):
         self.model = model
+        self.db = db
 
     def get_all(self, skip: int = 0, limit: int = 100) -> List[ModelType]:
         """Get all records with pagination"""

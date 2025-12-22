@@ -14,7 +14,6 @@ class BaseSchema(BaseModel):
 
     model_config = ConfigDict(
         from_attributes=True,  # Allow ORM mode for SQLAlchemy models
-        populate_by_name=True,
         str_strip_whitespace=True,
     )
 

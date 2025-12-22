@@ -144,7 +144,7 @@ async def create_project(
         )
 
     # Create project
-    project = project_repo.create(project_data.model_dump(), user_id=current_user.id)
+    project = project_repo.create(project_data.model_dump(), created_by=current_user.id)
 
     # Log activity
     activity_repo.log_activity(
