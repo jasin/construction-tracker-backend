@@ -1,4 +1,7 @@
-from sqlalchemy import Column, String
+from typing import Optional
+
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import BaseModel
 
@@ -8,11 +11,11 @@ class Client(BaseModel):
 
     __tablename__ = "clients"
 
-    name = Column(String, nullable=False)
-    email = Column(String, nullable=True, index=True)
-    phone = Column(String, nullable=True)
-    address = Column(String, nullable=True)
-    contact_person = Column(String, nullable=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    email: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    phone: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    address: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    contact_person: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     def __repr__(self):
         return f"<Client(id={self.id}, name={self.name})>"

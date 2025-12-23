@@ -1,12 +1,11 @@
-from datetime import datetime
-from typing import Any, Callable, Dict, Generic, List, Optional, Type, TypeVar
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from app.database import Base
+from app.models.base import BaseModel
 
-ModelType = TypeVar("ModelType", bound=Base)
+ModelType = TypeVar("ModelType", bound=BaseModel)
 
 
 class BaseRepository(Generic[ModelType]):
@@ -62,7 +61,8 @@ class BaseRepository(Generic[ModelType]):
                 setattr(instance, key, value)
 
         # Update metadata
-        instance.updated_by = updated_by
+        if updated_by is not None:
+            setattr(instance, "updated_by", updated_by)
         # updated_at is handled by SQLAlchemy's onupdate
 
         self.db.commit()

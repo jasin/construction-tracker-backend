@@ -1,4 +1,7 @@
-from sqlalchemy import Boolean, Column, String
+from typing import Optional
+
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import BaseModel
 
@@ -8,14 +11,18 @@ class User(BaseModel):
 
     __tablename__ = "users"
 
-    email = Column(String, unique=True, nullable=False, index=True)
-    password_hash = Column(String, nullable=False)  # Hashed password
-    name = Column(String, nullable=False)
-    photo = Column(String, nullable=True)  # URL to profile photo
-    role = Column(
+    email: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
+    password_hash: Mapped[str] = mapped_column(
+        String, nullable=False
+    )  # Hashed password
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    photo: Mapped[Optional[str]] = mapped_column(
+        String, nullable=True
+    )  # URL to profile photo
+    role: Mapped[str] = mapped_column(
         String, nullable=False, default="user"
     )  # admin, project-manager, etc.
-    active = Column(Boolean, default=True, nullable=False)
+    active: Mapped[bool] = mapped_column(default=True, nullable=False)
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"

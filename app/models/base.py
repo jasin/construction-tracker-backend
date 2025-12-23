@@ -1,6 +1,9 @@
 import uuid
+from datetime import datetime
+from typing import Optional
 
-from sqlalchemy import Column, DateTime, String
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -11,18 +14,19 @@ class BaseModel(Base):
 
     __abstract__ = True  # This ensures SQLAlchemy doesn't create a table for this class
 
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+    id: Mapped[str] = mapped_column(
+        String, primary_key=True, default=lambda: str(uuid.uuid4())
     )
-    updated_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
+    created_at: Mapped[datetime] = mapped_column(
+        insert_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        insert_default=func.now(),
         onupdate=func.now(),
         nullable=False,
     )
-    created_by = Column(String, nullable=True)
-    updated_by = Column(String, nullable=True)
+    created_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    updated_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     def to_dict(self):
         """Convert model instance to dictionary"""

@@ -21,7 +21,9 @@ class TaskCreateSchema(BaseCreateSchema):
     )
     status: TaskStatus = Field(TaskStatus.TODO, description="Task status")
     due_date: Optional[str] = Field(None, description="Due date (ISO format)")
-    project_id: str = Field(..., description="Project ID this task belongs to")
+    project_id: Optional[str] = Field(
+        None, description="Project ID this task belongs to"
+    )
     assigned_to: Optional[str] = Field(None, description="User ID task is assigned to")
     assigned_to_name: Optional[str] = Field(
         None, description="Display name of assigned user"
@@ -95,7 +97,9 @@ class TaskResponseSchema(BaseResponseSchema):
     priority: str = Field(..., description="Task priority level")
     status: str = Field(..., description="Task status")
     due_date: Optional[str] = Field(None, description="Due date (ISO format)")
-    project_id: str = Field(..., description="Project ID this task belongs to")
+    project_id: Optional[str] = Field(
+        None, description="Project ID this task belongs to"
+    )
     assigned_to: Optional[str] = Field(None, description="User ID task is assigned to")
     assigned_to_name: Optional[str] = Field(
         None, description="Display name of assigned user"
@@ -116,7 +120,9 @@ class TaskListResponseSchema(BaseResponseSchema):
     priority: str = Field(..., description="Task priority level")
     status: str = Field(..., description="Task status")
     due_date: Optional[str] = Field(None, description="Due date (ISO format)")
-    project_id: str = Field(..., description="Project ID this task belongs to")
+    project_id: Optional[str] = Field(
+        None, description="Project ID this task belongs to"
+    )
     assigned_to: Optional[str] = Field(None, description="User ID task is assigned to")
     assigned_to_name: Optional[str] = Field(
         None, description="Display name of assigned user"
