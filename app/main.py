@@ -24,8 +24,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include all API routes
-app.include_router(api_router)
+
+@app.get("/debug")
+async def debug():
+    """Temporary debug endpoint"""
+    return {
+        "message": "Debug endpoint working",
+        "cors_origins": settings.cors_origins_list,
+    }
+
+
+# Temporarily comment out api_router to test basic app
+# app.include_router(api_router)
 
 
 @app.get("/")
