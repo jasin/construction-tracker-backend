@@ -36,8 +36,8 @@ async def debug():
     }
 
 
-# Temporarily comment out api_router to test basic app
-# app.include_router(api_router)
+# Include all API routes
+app.include_router(api_router)
 
 
 @app.get("/")
