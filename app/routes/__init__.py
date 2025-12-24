@@ -19,7 +19,7 @@ from app.routes import (
 )
 
 # Create main API router
-api_router = APIRouter()
+api_router = APIRouter(prefix="/api")
 
 # Include all route modules
 api_router.include_router(users.auth_router)  # Authentication routes (/api/auth/...)
