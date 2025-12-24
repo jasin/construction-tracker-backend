@@ -26,6 +26,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.on_event("startup")
+async def startup_event():
+    """Log startup information"""
+    print(f"Starting up with PORT: {os.environ.get('PORT', 'not set')}")
+    print(f"CORS origins: {settings.cors_origins}")
+    print(f"CORS origins list: {settings.cors_origins_list}")
+    print(f"Environment: {settings.environment}")
+    print(f"Debug: {settings.debug}")
+
+
 # Include all API routes
 app.include_router(api_router)
 
