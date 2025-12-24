@@ -12,4 +12,5 @@ COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Run the web service on container startup.
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
+ENTRYPOINT ["sh", "-c"]
+CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
