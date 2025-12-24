@@ -15,7 +15,6 @@ app = FastAPI(
     debug=settings.debug,
 )
 
-print("FastAPI app initialized, starting server")
 
 # CORS middleware (allow Vue/iOS/Electron to connect)
 app.add_middleware(
@@ -27,17 +26,8 @@ app.add_middleware(
 )
 
 
-@app.get("/debug")
-async def debug():
-    """Temporary debug endpoint"""
-    return {
-        "message": "Debug endpoint working",
-        "cors_origins": settings.cors_origins_list,
-    }
-
-
 # Include all API routes
-# app.include_router(api_router)
+app.include_router(api_router)
 
 
 @app.get("/")
