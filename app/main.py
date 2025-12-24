@@ -37,7 +37,7 @@ async def debug():
 
 
 # Include all API routes
-app.include_router(api_router)
+# app.include_router(api_router)
 
 
 @app.get("/")
