@@ -15,6 +15,8 @@ app = FastAPI(
     debug=settings.debug,
 )
 
+print("FastAPI app initialized, starting server")
+
 # CORS middleware (allow Vue/iOS/Electron to connect)
 app.add_middleware(
     CORSMiddleware,
