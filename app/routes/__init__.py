@@ -19,11 +19,11 @@ from app.routes import (
 )
 
 # Create main API router
-api_router = APIRouter(prefix="/api")
+api_router = APIRouter()
 
 # Include all route modules
-api_router.include_router(users.auth_router)  # Authentication routes (/api/auth/...)
-api_router.include_router(users.router)  # User management routes (/api/users/...)
+api_router.include_router(users.auth_router)  # Authentication routes (/auth/...)
+api_router.include_router(users.router)  # User management routes (/users/...)
 api_router.include_router(clients.router)
 api_router.include_router(tasks.router)
 api_router.include_router(projects.router)
