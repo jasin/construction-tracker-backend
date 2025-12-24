@@ -28,6 +28,17 @@ app.add_middleware(
 app.include_router(api_router)
 
 
+@app.get("/debug")
+async def debug():
+    """Debug endpoint to check CORS settings"""
+    return {
+        "cors_origins": settings.cors_origins,
+        "cors_origins_list": settings.cors_origins_list,
+        "debug": settings.debug,
+        "environment": settings.environment,
+    }
+
+
 @app.get("/")
 async def root():
     """Root endpoint - API health check"""
