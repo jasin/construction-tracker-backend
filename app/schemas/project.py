@@ -33,6 +33,11 @@ class ProjectCreateSchema(BaseCreateSchema):
     architect: Optional[str] = Field(
         None, max_length=200, description="Architect name or firm"
     )
+    address: Optional[str] = Field(None, max_length=500, description="Project address")
+    description: Optional[str] = Field(None, description="Project description")
+    contract_signed: Optional[bool] = Field(
+        False, description="Whether contract is signed"
+    )
 
     @field_validator("name", "job_number")
     @classmethod
@@ -65,6 +70,11 @@ class ProjectUpdateSchema(BaseUpdateSchema):
     architect: Optional[str] = Field(
         None, max_length=200, description="Architect name or firm"
     )
+    address: Optional[str] = Field(None, max_length=500, description="Project address")
+    description: Optional[str] = Field(None, description="Project description")
+    contract_signed: Optional[bool] = Field(
+        None, description="Whether contract is signed"
+    )
 
     @field_validator("name", "job_number")
     @classmethod
@@ -91,6 +101,11 @@ class ProjectResponseSchema(BaseResponseSchema):
     project_manager: Optional[str] = Field(None, description="Project manager user ID")
     superintendent: Optional[str] = Field(None, description="Superintendent user ID")
     architect: Optional[str] = Field(None, description="Architect name or firm")
+    address: Optional[str] = Field(None, description="Project address")
+    description: Optional[str] = Field(None, description="Project description")
+    contract_signed: Optional[bool] = Field(
+        None, description="Whether contract is signed"
+    )
 
 
 class ProjectListResponseSchema(BaseResponseSchema):

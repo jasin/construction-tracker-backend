@@ -34,6 +34,11 @@ class Project(BaseModel):
         String, nullable=True
     )  # User ID
     architect: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    address: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    contract_signed: Mapped[Optional[bool]] = mapped_column(
+        nullable=True, default=False
+    )
 
     def __repr__(self):
         return f"<Project(id={self.id}, name={self.name}, phase={self.phase})>"

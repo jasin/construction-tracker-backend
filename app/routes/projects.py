@@ -194,7 +194,9 @@ async def update_project(
 
     # Update project
     project = project_repo.update(
-        project_id, project_data.model_dump(exclude_unset=True), user_id=current_user.id
+        project_id,
+        project_data.model_dump(exclude_unset=True),
+        updated_by=current_user.id,
     )
 
     # Log activity

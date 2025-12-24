@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     # Database (Supabase provides PostgreSQL connection string)
     database_url: str = ""  # Set a default value
 
-    # JWT
-    jwt_secret_key: str = "change-this-in-production"
+    # JWT - Using Supabase JWT secret for RLS compatibility
+    jwt_secret_key: str = "7shh8J7e4Q/MSbxZqDe5aaP3aEPuUUymdZjSD0KxJjyQ8A7KXEeIv4TrI0RhqWS1BnVncY4z5npwmA0sWCiENQ=="
     jwt_algorithm: str = "HS256"
     jwt_expiration_minutes: int = 10080  # 7 days
 

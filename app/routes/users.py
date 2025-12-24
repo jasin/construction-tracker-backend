@@ -81,8 +81,21 @@ async def login(login_data: UserLoginSchema, db: Session = Depends(get_db)):
             status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive"
         )
 
-    # Create access token
-    access_token = create_access_token(data={"sub": user.id})
+    # Create access token with Supabase-compatible claims
+    # Supabase requires: aud, iss, sub, role, exp
+    access_token = create_access_token(
+        data={
+            "aud": "authenticated",  # REQUIRED: Audience claim
+            "iss": "https://pjtltwthpeufcfmewfsx.supabase.co/auth/v1",  # REQUIRED: Issuer (Supabase auth URL)
+            "role": "authenticated",  # REQUIRED: Role for RLS policies
+            "sub": user.id,  # REQUIRED: Subject (user ID)
+            "email": user.email,
+            "user_metadata": {
+                "name": user.name,
+                "app_role": user.role,  # Your app's custom role
+            },
+        }
+    )
 
     return UserLoginResponseSchema(
         id=user.id,
@@ -102,6 +115,37 @@ async def login(login_data: UserLoginSchema, db: Session = Depends(get_db)):
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current user information."""
     return current_user
+
+
+@auth_router.get("/debug-token")
+async def debug_token(current_user: User = Depends(get_current_user)):
+    """Debug endpoint to see JWT token claims."""
+    # This is a bit hacky but works for debugging
+    import inspect
+
+    from fastapi import Request
+
+    from app.utils.auth import decode_access_token
+    from app.utils.dependencies import get_token_from_header
+
+    frame = inspect.currentframe()
+    request = None
+    for frame_info in inspect.getouterframes(frame):
+        for var_name, var_value in frame_info.frame.f_locals.items():
+            if isinstance(var_value, Request):
+                request = var_value
+                break
+        if request:
+            break
+
+    if request:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+            decoded = decode_access_token(token)
+            return {"decoded_token": decoded, "user": current_user.email}
+
+    return {"error": "Could not extract token"}
 
 
 @auth_router.post("/change-password", response_model=MessageResponse)

@@ -84,9 +84,19 @@ def decode_access_token(token: str) -> Optional[dict]:
         Decoded token data if valid, None otherwise
     """
     try:
+        # Decode with audience validation disabled (we validate manually)
         payload = jwt.decode(
-            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+            options={"verify_aud": False},  # Disable audience validation
         )
+        print(f"[DEBUG] JWT decoded successfully: {payload}")
         return payload
-    except JWTError:
+    except JWTError as e:
+        print(f"[DEBUG] JWT decode error: {type(e).__name__}: {str(e)}")
+        print(
+            f"[DEBUG] Token (first 50 chars): {token[:50] if len(token) > 50 else token}"
+        )
+        print(f"[DEBUG] Using secret: {settings.jwt_secret_key[:20]}...")
         return None

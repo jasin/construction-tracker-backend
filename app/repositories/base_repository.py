@@ -55,15 +55,28 @@ class BaseRepository(Generic[ModelType]):
         if not instance:
             return None
 
+        # Debug logging
+        print(f"[BaseRepository.update] Updating {self.model.__name__} ID: {id}")
+        print(f"[BaseRepository.update] Data received: {data}")
+
         # Update fields
         for key, value in data.items():
-            if value is not None and hasattr(instance, key):
+            if hasattr(instance, key):
+                print(f"[BaseRepository.update] Setting {key} = {value}")
                 setattr(instance, key, value)
+            else:
+                print(f"[BaseRepository.update] Skipping {key} (not an attribute)")
 
         # Update metadata
         if updated_by is not None:
             setattr(instance, "updated_by", updated_by)
-        # updated_at is handled by SQLAlchemy's onupdate
+
+        # Force updated_at to trigger even if no fields changed
+        # This ensures SQLAlchemy detects the change
+        from datetime import datetime
+
+        if hasattr(instance, "updated_at"):
+            setattr(instance, "updated_at", datetime.utcnow())
 
         self.db.commit()
         self.db.refresh(instance)
