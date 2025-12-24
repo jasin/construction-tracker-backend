@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -36,6 +38,7 @@ async def debug():
         "cors_origins_list": settings.cors_origins_list,
         "debug": settings.debug,
         "environment": settings.environment,
+        "port": os.environ.get("PORT"),
     }
 
 
