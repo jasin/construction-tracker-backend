@@ -1,0 +1,12 @@
+construction-tracker-backend\railway.json
+{
+  "build": {
+    "builder": "python"
+  },
+  "deploy": {
+    "startCommand": "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+  },
+  "variables": {
+    "PORT": "80"
+  }
+}
