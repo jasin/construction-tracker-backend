@@ -26,6 +26,16 @@ app.add_middleware(
 )
 
 
+@app.post("/debug")
+async def debug(request_data: dict):
+    """Temporary debug endpoint to test request parsing"""
+    return {
+        "received_data": request_data,
+        "data_type": type(request_data).__name__,
+        "data_len": len(request_data) if request_data else 0,
+    }
+
+
 # Include all API routes
 app.include_router(api_router)
 
