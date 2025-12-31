@@ -46,7 +46,7 @@ class TaskCreateSchema(BaseCreateSchema):
 
     @field_validator("dependencies")
     @classmethod
-    def dependencies_must_be_list(cls, v):
+    def dependencies_must_be_list(cls, v: Optional[List[str]]) -> List[str]:
         """Ensure dependencies is a list."""
         if v is None:
             return []
@@ -94,8 +94,8 @@ class TaskResponseSchema(BaseResponseSchema):
 
     title: str = Field(..., description="Task title")
     description: Optional[str] = Field(None, description="Task description")
-    priority: str = Field(..., description="Task priority level")
-    status: str = Field(..., description="Task status")
+    priority: TaskPriority = Field(..., description="Task priority level")
+    status: TaskStatus = Field(..., description="Task status")
     due_date: Optional[str] = Field(None, description="Due date (ISO format)")
     project_id: Optional[str] = Field(
         None, description="Project ID this task belongs to"
@@ -117,8 +117,8 @@ class TaskListResponseSchema(BaseResponseSchema):
     """Simplified schema for task lists (fewer fields for performance)."""
 
     title: str = Field(..., description="Task title")
-    priority: str = Field(..., description="Task priority level")
-    status: str = Field(..., description="Task status")
+    priority: TaskPriority = Field(..., description="Task priority level")
+    status: TaskStatus = Field(..., description="Task status")
     due_date: Optional[str] = Field(None, description="Due date (ISO format)")
     project_id: Optional[str] = Field(
         None, description="Project ID this task belongs to"

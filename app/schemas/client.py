@@ -14,7 +14,7 @@ class ClientCreateSchema(BaseCreateSchema):
     """Schema for creating a new client."""
 
     name: str = Field(..., min_length=1, max_length=200, description="Client name")
-    email: Optional[EmailStr] = Field(None, description="Client email address")
+    email: EmailStr = Field(..., description="Client email address")
     phone: Optional[str] = Field(None, max_length=50, description="Client phone number")
     address: Optional[str] = Field(None, max_length=500, description="Client address")
     contact_person: Optional[str] = Field(
@@ -23,10 +23,10 @@ class ClientCreateSchema(BaseCreateSchema):
 
     @field_validator("name")
     @classmethod
-    def not_empty(cls, v: str) -> str:
+    def name_not_empty(cls, v: str) -> str:
         """Validate field is not empty or whitespace."""
         if not v or not v.strip():
-            raise ValueError("Field cannot be empty")
+            raise ValueError("Name cannot be empty")
         return v.strip()
 
 

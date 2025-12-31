@@ -39,10 +39,10 @@ class ActivityLogCreateSchema(BaseCreateSchema):
 
     @field_validator("description", "user_name")
     @classmethod
-    def not_empty(cls, v: str) -> str:
+    def action_not_empty(cls, v: str) -> str:
         """Validate field is not empty or whitespace."""
         if not v or not v.strip():
-            raise ValueError("Field cannot be empty")
+            raise ValueError("Action cannot be empty")
         return v.strip()
 
 

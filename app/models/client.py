@@ -12,7 +12,7 @@ class Client(BaseModel):
     __tablename__ = "clients"
 
     name: Mapped[str] = mapped_column(String, nullable=False)
-    email: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    email: Mapped[str] = mapped_column(String, nullable=False, index=True)
     phone: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     address: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     contact_person: Mapped[Optional[str]] = mapped_column(String, nullable=True)

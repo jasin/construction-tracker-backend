@@ -19,12 +19,14 @@ class ChangeOrder(BaseModel):
     project_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
     cost: Mapped[Optional[float]] = mapped_column(nullable=True)
     requested_by: Mapped[Optional[str]] = mapped_column(
-        String, nullable=True
+        String, nullable=True, index=True
     )  # User ID
     requested_date: Mapped[Optional[str]] = mapped_column(
         String, nullable=True
     )  # ISO 8601 date string
-    approved_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # User ID
+    approved_by: Mapped[Optional[str]] = mapped_column(
+        String, nullable=True, index=True
+    )  # User ID
     approved_date: Mapped[Optional[str]] = mapped_column(
         String, nullable=True
     )  # ISO 8601 date string

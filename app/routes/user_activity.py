@@ -3,7 +3,7 @@ User Activity Routes
 API endpoints for tracking user activity (read/unread items).
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -29,14 +29,14 @@ async def get_user_activity(
     Get user activity record for a specific project.
     Creates a new record if one doesn't exist.
     """
-    repo = UserActivityRepository(db)
-    activity = repo.get_or_create(
+    user_activity_repo = UserActivityRepository(db)
+    activity = user_activity_repo.get_or_create(
         user_id=current_user.id, project_id=project_id, created_by=current_user.id
     )
     return activity
 
 
-@router.put("/{project_id}/section-visit", response_model=UserActivityResponse)
+@router.patch("/{project_id}/section-visit", response_model=UserActivityResponse)
 async def update_section_visit(
     project_id: str,
     data: SectionVisitUpdate,
@@ -49,20 +49,17 @@ async def update_section_visit(
     This is called when a user navigates to or views a section
     (e.g., RFIs, Submittals, Tasks, etc.)
     """
-    repo = UserActivityRepository(db)
+    user_activity_repo = UserActivityRepository(db)
 
-    try:
-        activity = repo.update_section_visit(
-            user_id=current_user.id,
-            project_id=project_id,
-            section=data.section,
-        )
-        return activity
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    activity = user_activity_repo.update_section_visit(
+        user_id=current_user.id,
+        project_id=project_id,
+        section=data.section,
+    )
+    return activity
 
 
-@router.put("/{project_id}/mark-read", response_model=UserActivityResponse)
+@router.patch("/{project_id}/mark-read", response_model=UserActivityResponse)
 async def mark_item_as_read(
     project_id: str,
     data: MarkItemRead,
@@ -75,9 +72,9 @@ async def mark_item_as_read(
     This is called when a user clicks on or expands an item
     (e.g., opens an RFI detail, expands a task, etc.)
     """
-    repo = UserActivityRepository(db)
+    user_activity_repo = UserActivityRepository(db)
 
-    activity = repo.mark_item_read(
+    activity = user_activity_repo.mark_item_read(
         user_id=current_user.id,
         project_id=project_id,
         entity_type=data.entity_type,
@@ -86,7 +83,7 @@ async def mark_item_as_read(
     return activity
 
 
-@router.delete("/{project_id}/clear-read-items", response_model=UserActivityResponse)
+@router.patch("/{project_id}/clear-read-items", response_model=UserActivityResponse)
 async def clear_read_items(
     project_id: str,
     db: Session = Depends(get_db),
@@ -96,14 +93,16 @@ async def clear_read_items(
     Clear all read items for the current user in a project.
     Useful for testing or if user wants to reset their read status.
     """
-    repo = UserActivityRepository(db)
-    activity = repo.clear_read_items(user_id=current_user.id, project_id=project_id)
+    user_activity_repo = UserActivityRepository(db)
+
+    activity = user_activity_repo.clear_read_items(
+        user_id=current_user.id, project_id=project_id
+    )
+
     return activity
 
 
-@router.delete(
-    "/{project_id}/clear-section-visits", response_model=UserActivityResponse
-)
+@router.patch("/{project_id}/clear-section-visits", response_model=UserActivityResponse)
 async def clear_section_visits(
     project_id: str,
     db: Session = Depends(get_db),
@@ -113,6 +112,8 @@ async def clear_section_visits(
     Clear all section visit timestamps for the current user in a project.
     Useful for testing or if user wants to reset their visit history.
     """
-    repo = UserActivityRepository(db)
-    activity = repo.clear_section_visits(user_id=current_user.id, project_id=project_id)
+    user_activity_repo = UserActivityRepository(db)
+    activity = user_activity_repo.clear_section_visits(
+        user_id=current_user.id, project_id=project_id
+    )
     return activity

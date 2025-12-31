@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import String
+from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import BaseModel
@@ -22,7 +22,7 @@ class User(BaseModel):
     role: Mapped[str] = mapped_column(
         String, nullable=False, default="user"
     )  # admin, project-manager, etc.
-    active: Mapped[bool] = mapped_column(default=True, nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, role={self.role})>"

@@ -5,7 +5,7 @@ API endpoints for document management.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -16,9 +16,13 @@ from app.schemas import (
     DocumentListResponseSchema,
     DocumentResponseSchema,
     DocumentUpdateSchema,
-    MessageResponse,
 )
 from app.utils.dependencies import get_current_user
+from app.utils.exceptions import (
+    ensure_exists,
+    ensure_operation_success,
+    raise_bad_request,
+)
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -30,8 +34,8 @@ async def list_documents(
     category: Optional[str] = Query(None),
     linked_entity_id: Optional[str] = Query(None),
     uploaded_by: Optional[str] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -72,8 +76,8 @@ async def list_documents(
 async def search_documents(
     q: str = Query(..., min_length=1),
     project_id: Optional[str] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -133,13 +137,7 @@ async def get_document(
 ):
     """Get a specific document by ID."""
     doc_repo = DocumentRepository(db)
-    document = doc_repo.get_by_id(document_id)
-
-    if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Document not found with ID: {document_id}",
-        )
+    document = ensure_exists(doc_repo.get_by_id(document_id), "Document", document_id)
 
     return document
 
@@ -156,7 +154,7 @@ async def create_document(
     doc_repo = DocumentRepository(db)
     activity_repo = ActivityLogRepository(db)
 
-    document = doc_repo.create(doc_data.model_dump(), user_id=current_user.id)
+    document = doc_repo.create(doc_data.model_dump(), created_by=current_user.id)
 
     activity_repo.log_activity(
         project_id=document.project_id,
@@ -183,15 +181,16 @@ async def update_document(
     doc_repo = DocumentRepository(db)
     activity_repo = ActivityLogRepository(db)
 
-    existing_doc = doc_repo.get_by_id(document_id)
-    if not existing_doc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Document not found with ID: {document_id}",
-        )
+    ensure_exists(doc_repo.get_by_id(document_id), "Document", document_id)
 
-    document = doc_repo.update(
-        document_id, doc_data.model_dump(exclude_unset=True), user_id=current_user.id
+    document = ensure_operation_success(
+        doc_repo.update(
+            document_id,
+            doc_data.model_dump(exclude_unset=True),
+            updated_by=current_user.id,
+        ),
+        "update",
+        "Document",
     )
 
     activity_repo.log_activity(
@@ -208,7 +207,7 @@ async def update_document(
     return document
 
 
-@router.delete("/{document_id}", response_model=MessageResponse)
+@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document(
     document_id: str,
     db: Session = Depends(get_db),
@@ -218,12 +217,7 @@ async def delete_document(
     doc_repo = DocumentRepository(db)
     activity_repo = ActivityLogRepository(db)
 
-    document = doc_repo.get_by_id(document_id)
-    if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Document not found with ID: {document_id}",
-        )
+    document = ensure_exists(doc_repo.get_by_id(document_id), "Document", document_id)
 
     activity_repo.log_activity(
         project_id=document.project_id,
@@ -236,6 +230,5 @@ async def delete_document(
         additional_data={"category": document.category, "type": document.type},
     )
 
-    doc_repo.delete(document_id)
-
-    return MessageResponse(message=f"Document {document_id} deleted successfully")
+    if not doc_repo.delete(document_id):
+        raise_bad_request("Failed to delete document")

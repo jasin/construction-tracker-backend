@@ -5,20 +5,24 @@ API endpoints for project management.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
 from app.repositories import ActivityLogRepository, ProjectRepository
 from app.schemas import (
-    MessageResponse,
     ProjectCreateSchema,
     ProjectListResponseSchema,
     ProjectResponseSchema,
     ProjectUpdateSchema,
 )
 from app.utils.dependencies import get_current_user
+from app.utils.exceptions import (
+    ensure_exists,
+    ensure_operation_success,
+    raise_bad_request,
+)
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -32,8 +36,8 @@ async def list_projects(
     superintendent_id: Optional[str] = Query(
         None, description="Filter by superintendent"
     ),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -60,8 +64,8 @@ async def list_projects(
 
 @router.get("/active", response_model=list[ProjectListResponseSchema])
 async def list_active_projects(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -74,8 +78,8 @@ async def list_active_projects(
 @router.get("/search", response_model=list[ProjectListResponseSchema])
 async def search_projects(
     q: str = Query(..., min_length=1, description="Search term"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -93,13 +97,9 @@ async def get_project_by_job_number(
 ):
     """Get a project by its job number."""
     project_repo = ProjectRepository(db)
-    project = project_repo.get_by_job_number(job_number)
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Project not found with job number: {job_number}",
-        )
+    project = ensure_exists(
+        project_repo.get_by_job_number(job_number), "Project", job_number
+    )
 
     return project
 
@@ -112,13 +112,7 @@ async def get_project(
 ):
     """Get a specific project by ID."""
     project_repo = ProjectRepository(db)
-    project = project_repo.get_by_id(project_id)
-
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Project not found with ID: {project_id}",
-        )
+    project = ensure_exists(project_repo.get_by_id(project_id), "Project", project_id)
 
     return project
 
@@ -136,16 +130,13 @@ async def create_project(
     activity_repo = ActivityLogRepository(db)
 
     # Check if job number already exists
-    existing = project_repo.get_by_job_number(project_data.job_number)
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Project with job number {project_data.job_number} already exists",
-        )
-
+    ensure_exists(
+        project_repo.get_by_job_number(project_data.job_number),
+        "Project",
+        project_data.job_number,
+    )
     # Create project
     project = project_repo.create(project_data.model_dump(), created_by=current_user.id)
-
     # Log activity
     activity_repo.log_activity(
         project_id=project.id,
@@ -173,30 +164,30 @@ async def update_project(
     activity_repo = ActivityLogRepository(db)
 
     # Check if project exists
-    existing_project = project_repo.get_by_id(project_id)
-    if not existing_project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Project not found with ID: {project_id}",
-        )
+    existing_project = ensure_exists(
+        project_repo.get_by_id(project_id), "Project", project_id
+    )
 
     # If job number is being updated, check for duplicates
     if (
         project_data.job_number
         and project_data.job_number != existing_project.job_number
     ):
-        duplicate = project_repo.get_by_job_number(project_data.job_number)
-        if duplicate:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Project with job number {project_data.job_number} already exists",
-            )
+        ensure_exists(
+            project_repo.get_by_job_number(project_data.job_number),
+            "Project",
+            project_data.job_number,
+        )
 
     # Update project
-    project = project_repo.update(
-        project_id,
-        project_data.model_dump(exclude_unset=True),
-        updated_by=current_user.id,
+    project = ensure_operation_success(
+        project_repo.update(
+            project_id,
+            project_data.model_dump(exclude_unset=True),
+            updated_by=current_user.id,
+        ),
+        "update",
+        "Project",
     )
 
     # Log activity
@@ -214,7 +205,7 @@ async def update_project(
     return project
 
 
-@router.delete("/{project_id}", response_model=MessageResponse)
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_project(
     project_id: str,
     db: Session = Depends(get_db),
@@ -225,12 +216,7 @@ async def delete_project(
     activity_repo = ActivityLogRepository(db)
 
     # Check if project exists
-    project = project_repo.get_by_id(project_id)
-    if not project:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Project not found with ID: {project_id}",
-        )
+    project = ensure_exists(project_repo.get_by_id(project_id), "Project", project_id)
 
     # Log activity before deletion
     activity_repo.log_activity(
@@ -245,6 +231,5 @@ async def delete_project(
     )
 
     # Delete project
-    project_repo.delete(project_id)
-
-    return MessageResponse(message=f"Project {project_id} deleted successfully")
+    if not project_repo.delete(project_id):
+        raise_bad_request("Failed to delete project")

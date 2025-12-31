@@ -72,8 +72,8 @@ class RFIResponseSchema(BaseResponseSchema):
 
     title: str = Field(..., description="RFI title")
     description: Optional[str] = Field(None, description="RFI description")
-    priority: str = Field(..., description="RFI priority level")
-    status: str = Field(..., description="RFI status")
+    priority: RFIPriority = Field(..., description="RFI priority level")
+    status: RFIStatus = Field(..., description="RFI status")
     project_id: str = Field(..., description="Project ID this RFI belongs to")
     submitted_by: str = Field(..., description="User ID who submitted the RFI")
     submitted_date: Optional[str] = Field(
@@ -88,8 +88,8 @@ class RFIListResponseSchema(BaseResponseSchema):
     """Simplified schema for RFI lists."""
 
     title: str = Field(..., description="RFI title")
-    priority: str = Field(..., description="RFI priority level")
-    status: str = Field(..., description="RFI status")
+    priority: RFIPriority = Field(..., description="RFI priority level")
+    status: RFIStatus = Field(..., description="RFI status")
     project_id: str = Field(..., description="Project ID this RFI belongs to")
     submitted_by: str = Field(..., description="User ID who submitted the RFI")
     submitted_date: Optional[str] = Field(

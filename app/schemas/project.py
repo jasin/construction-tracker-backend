@@ -7,7 +7,7 @@ from typing import Optional
 
 from pydantic import Field, field_validator
 
-from app.constants.enums import ProjectPhase
+from app.constants.enums import ProjectPhase, ProjectStatus
 from app.schemas.base import BaseCreateSchema, BaseResponseSchema, BaseUpdateSchema
 
 
@@ -22,7 +22,7 @@ class ProjectCreateSchema(BaseCreateSchema):
     phase: ProjectPhase = Field(
         ProjectPhase.PRE_CONSTRUCTION, description="Project phase"
     )
-    status: str = Field("active", max_length=50, description="Project status")
+    status: ProjectStatus = Field(ProjectStatus.ACTIVE, description="Project status")
     cost: Optional[float] = Field(None, ge=0, description="Project cost")
     start_date: Optional[str] = Field(
         None, description="Project start date (ISO format)"
@@ -35,16 +35,14 @@ class ProjectCreateSchema(BaseCreateSchema):
     )
     address: Optional[str] = Field(None, max_length=500, description="Project address")
     description: Optional[str] = Field(None, description="Project description")
-    contract_signed: Optional[bool] = Field(
-        False, description="Whether contract is signed"
-    )
+    contract_signed: bool = Field(False, description="Whether contract is signed")
 
     @field_validator("name", "job_number")
     @classmethod
-    def not_empty(cls, v: str) -> str:
+    def action_not_empty(cls, v: str) -> str:
         """Validate field is not empty or whitespace."""
         if not v or not v.strip():
-            raise ValueError("Field cannot be empty")
+            raise ValueError("Action cannot be empty")
         return v.strip()
 
 
@@ -59,7 +57,7 @@ class ProjectUpdateSchema(BaseUpdateSchema):
     )
     client_id: Optional[str] = Field(None, description="Client ID")
     phase: Optional[ProjectPhase] = Field(None, description="Project phase")
-    status: Optional[str] = Field(None, max_length=50, description="Project status")
+    status: Optional[ProjectStatus] = Field(None, description="Project status")
     cost: Optional[float] = Field(None, ge=0, description="Project cost")
     start_date: Optional[str] = Field(
         None, description="Project start date (ISO format)"
@@ -78,10 +76,10 @@ class ProjectUpdateSchema(BaseUpdateSchema):
 
     @field_validator("name", "job_number")
     @classmethod
-    def not_empty(cls, v: Optional[str]) -> Optional[str]:
+    def action_not_empty(cls, v: Optional[str]) -> Optional[str]:
         """Validate field is not empty or whitespace if provided."""
         if v is not None and (not v or not v.strip()):
-            raise ValueError("Field cannot be empty")
+            raise ValueError("Action cannot be empty")
         return v.strip() if v else v
 
 
@@ -92,7 +90,7 @@ class ProjectResponseSchema(BaseResponseSchema):
     job_number: str = Field(..., description="Unique job number")
     client_id: Optional[str] = Field(None, description="Client ID")
     phase: str = Field(..., description="Project phase")
-    status: str = Field(..., description="Project status")
+    status: ProjectStatus = Field(..., description="Project status")
     cost: Optional[float] = Field(None, description="Project cost")
     start_date: Optional[str] = Field(
         None, description="Project start date (ISO format)"
@@ -103,9 +101,7 @@ class ProjectResponseSchema(BaseResponseSchema):
     architect: Optional[str] = Field(None, description="Architect name or firm")
     address: Optional[str] = Field(None, description="Project address")
     description: Optional[str] = Field(None, description="Project description")
-    contract_signed: Optional[bool] = Field(
-        None, description="Whether contract is signed"
-    )
+    contract_signed: bool = Field(..., description="Whether contract is signed")
 
 
 class ProjectListResponseSchema(BaseResponseSchema):
@@ -114,7 +110,7 @@ class ProjectListResponseSchema(BaseResponseSchema):
     name: str = Field(..., description="Project name")
     job_number: str = Field(..., description="Unique job number")
     phase: str = Field(..., description="Project phase")
-    status: str = Field(..., description="Project status")
+    status: ProjectStatus = Field(..., description="Project status")
     start_date: Optional[str] = Field(
         None, description="Project start date (ISO format)"
     )

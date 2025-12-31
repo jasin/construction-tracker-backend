@@ -5,7 +5,7 @@ API endpoints for change order management.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -16,9 +16,13 @@ from app.schemas import (
     ChangeOrderListResponseSchema,
     ChangeOrderResponseSchema,
     ChangeOrderUpdateSchema,
-    MessageResponse,
 )
 from app.utils.dependencies import get_current_user
+from app.utils.exceptions import (
+    ensure_exists,
+    ensure_operation_success,
+    raise_bad_request,
+)
 
 router = APIRouter(prefix="/change-orders", tags=["change-orders"])
 
@@ -29,8 +33,8 @@ async def list_change_orders(
     status: Optional[str] = Query(None),
     requested_by: Optional[str] = Query(None),
     approved_by: Optional[str] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -64,8 +68,8 @@ async def list_change_orders(
 @router.get("/pending-approval", response_model=list[ChangeOrderListResponseSchema])
 async def list_pending_approval(
     project_id: Optional[str] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -79,10 +83,10 @@ async def list_pending_approval(
 
 @router.get("/search", response_model=list[ChangeOrderListResponseSchema])
 async def search_change_orders(
-    q: str = Query(..., min_length=1),
+    q: str = Query(..., min_length=1, description="Search term"),
     project_id: Optional[str] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -126,11 +130,7 @@ async def get_change_order(
     co_repo = ChangeOrderRepository(db)
     change_order = co_repo.get_by_id(change_order_id)
 
-    if not change_order:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Change order not found with ID: {change_order_id}",
-        )
+    ensure_exists(change_order, "Change order", change_order_id)
 
     return change_order
 
@@ -147,7 +147,7 @@ async def create_change_order(
     co_repo = ChangeOrderRepository(db)
     activity_repo = ActivityLogRepository(db)
 
-    change_order = co_repo.create(co_data.model_dump(), user_id=current_user.id)
+    change_order = co_repo.create(co_data.model_dump(), created_by=current_user.id)
 
     activity_repo.log_activity(
         project_id=change_order.project_id,
@@ -174,15 +174,16 @@ async def update_change_order(
     co_repo = ChangeOrderRepository(db)
     activity_repo = ActivityLogRepository(db)
 
-    existing_co = co_repo.get_by_id(change_order_id)
-    if not existing_co:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Change order not found with ID: {change_order_id}",
-        )
+    ensure_exists(co_repo.get_by_id(change_order_id), "Log")
 
-    change_order = co_repo.update(
-        change_order_id, co_data.model_dump(exclude_unset=True), user_id=current_user.id
+    change_order = ensure_operation_success(
+        co_repo.update(
+            change_order_id,
+            co_data.model_dump(exclude_unset=True),
+            updated_by=current_user.id,
+        ),
+        "update",
+        "Change Order",
     )
 
     activity_repo.log_activity(
@@ -199,7 +200,7 @@ async def update_change_order(
     return change_order
 
 
-@router.delete("/{change_order_id}", response_model=MessageResponse)
+@router.delete("/{change_order_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_change_order(
     change_order_id: str,
     db: Session = Depends(get_db),
@@ -209,12 +210,7 @@ async def delete_change_order(
     co_repo = ChangeOrderRepository(db)
     activity_repo = ActivityLogRepository(db)
 
-    change_order = co_repo.get_by_id(change_order_id)
-    if not change_order:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Change order not found with ID: {change_order_id}",
-        )
+    change_order = ensure_exists(co_repo.get_by_id(change_order_id), "Change Order")
 
     activity_repo.log_activity(
         project_id=change_order.project_id,
@@ -227,8 +223,5 @@ async def delete_change_order(
         additional_data={"status": change_order.status, "cost": change_order.cost},
     )
 
-    co_repo.delete(change_order_id)
-
-    return MessageResponse(
-        message=f"Change order {change_order_id} deleted successfully"
-    )
+    if not co_repo.delete(change_order_id):
+        raise_bad_request("Failed to delete change order")

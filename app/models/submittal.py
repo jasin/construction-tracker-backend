@@ -18,12 +18,14 @@ class Submittal(BaseModel):
     )  # pending, reviewed, approved, rejected
     project_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
     submitted_by: Mapped[Optional[str]] = mapped_column(
-        String, nullable=True
+        String, nullable=True, index=True
     )  # User ID
     submitted_date: Mapped[Optional[str]] = mapped_column(
         String, nullable=True
     )  # ISO 8601 date string
-    reviewed_by: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # User ID
+    reviewed_by: Mapped[Optional[str]] = mapped_column(
+        String, nullable=True, index=True
+    )  # User ID
     reviewed_date: Mapped[Optional[str]] = mapped_column(
         String, nullable=True
     )  # ISO 8601 date string

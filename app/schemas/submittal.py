@@ -76,7 +76,7 @@ class SubmittalResponseSchema(BaseResponseSchema):
 
     title: str = Field(..., description="Submittal title")
     description: Optional[str] = Field(None, description="Submittal description")
-    status: str = Field(..., description="Submittal status")
+    status: SubmittalStatus = Field(..., description="Submittal status")
     project_id: str = Field(..., description="Project ID this submittal belongs to")
     submitted_by: Optional[str] = Field(
         None, description="User ID who submitted the submittal"
@@ -94,7 +94,7 @@ class SubmittalListResponseSchema(BaseResponseSchema):
     """Simplified schema for submittal lists."""
 
     title: str = Field(..., description="Submittal title")
-    status: str = Field(..., description="Submittal status")
+    status: SubmittalStatus = Field(..., description="Submittal status")
     project_id: str = Field(..., description="Project ID this submittal belongs to")
     submitted_by: Optional[str] = Field(
         None, description="User ID who submitted the submittal"

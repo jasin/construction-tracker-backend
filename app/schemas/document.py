@@ -3,10 +3,12 @@ Document Pydantic Schemas
 Schemas for Document entity validation and serialization.
 """
 
-from pydantic import Field, field_validator
 from typing import Optional
-from app.schemas.base import BaseCreateSchema, BaseUpdateSchema, BaseResponseSchema
+
+from pydantic import Field, field_validator
+
 from app.constants.enums import DocumentCategory
+from app.schemas.base import BaseCreateSchema, BaseResponseSchema, BaseUpdateSchema
 
 
 class DocumentCreateSchema(BaseCreateSchema):
@@ -70,7 +72,7 @@ class DocumentResponseSchema(BaseResponseSchema):
 
     name: str = Field(..., description="Document name")
     type: str = Field(..., description="Document file type")
-    category: str = Field(..., description="Document category")
+    category: DocumentCategory = Field(..., description="Document category")
     url: str = Field(..., description="Document URL")
     project_id: str = Field(..., description="Project ID this document belongs to")
     linked_entity_id: Optional[str] = Field(None, description="ID of linked entity")
@@ -86,12 +88,14 @@ class DocumentListResponseSchema(BaseResponseSchema):
 
     name: str = Field(..., description="Document name")
     type: str = Field(..., description="Document file type")
-    category: str = Field(..., description="Document category")
+    category: DocumentCategory = Field(..., description="Document category")
     project_id: str = Field(..., description="Project ID this document belongs to")
     uploaded_by: Optional[str] = Field(
         None, description="User ID who uploaded the document"
     )
     project_id: str = Field(..., description="Project ID this document belongs to")
-    uploaded_by: Optional[str] = Field(None, description="User ID who uploaded the document")
+    uploaded_by: Optional[str] = Field(
+        None, description="User ID who uploaded the document"
+    )
     uploaded_date: Optional[str] = Field(None, description="Upload date (ISO format)")
     size: Optional[int] = Field(None, description="File size in bytes")

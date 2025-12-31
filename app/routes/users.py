@@ -5,14 +5,13 @@ API endpoints for user management and authentication.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
 from app.repositories import UserRepository
 from app.schemas import (
-    MessageResponse,
     PasswordChangeSchema,
     UserCreateSchema,
     UserListResponseSchema,
@@ -23,6 +22,14 @@ from app.schemas import (
 )
 from app.utils.auth import create_access_token, get_password_hash, verify_password
 from app.utils.dependencies import get_current_user, require_admin
+from app.utils.exceptions import (
+    ensure_exists,
+    ensure_operation_success,
+    raise_bad_request,
+    raise_forbidden,
+    raise_not_found,
+    raise_unauthorized,
+)
 
 router = APIRouter(prefix="/users", tags=["users"])
 auth_router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -40,10 +47,7 @@ async def register(user_data: UserCreateSchema, db: Session = Depends(get_db)):
 
     # Check if email already exists
     if user_repo.email_exists(user_data.email):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Email {user_data.email} is already registered",
-        )
+        raise_bad_request(f"Email {user_data.email} is already registered")
 
     # Hash password
     user_dict = user_data.model_dump()
@@ -61,25 +65,15 @@ async def login(login_data: UserLoginSchema, db: Session = Depends(get_db)):
     user_repo = UserRepository(db)
 
     # Get user by email
-    user = user_repo.get_by_email(login_data.email)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-        )
+    user = ensure_exists(user_repo.get_by_email(login_data.email), "Email")
 
     # Verify password
     if not verify_password(login_data.password, user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-        )
+        raise_unauthorized("Incorrect email or password")
 
     # Check if user is active
     if not user.active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive"
-        )
+        raise_forbidden("User account is inactive")
 
     # Create access token with Supabase-compatible claims
     # Supabase requires: aud, iss, sub, role, exp
@@ -117,38 +111,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
     return current_user
 
 
-@auth_router.get("/debug-token")
-async def debug_token(current_user: User = Depends(get_current_user)):
-    """Debug endpoint to see JWT token claims."""
-    # This is a bit hacky but works for debugging
-    import inspect
-
-    from fastapi import Request
-
-    from app.utils.auth import decode_access_token
-    from app.utils.dependencies import get_token_from_header
-
-    frame = inspect.currentframe()
-    request = None
-    for frame_info in inspect.getouterframes(frame):
-        for var_name, var_value in frame_info.frame.f_locals.items():
-            if isinstance(var_value, Request):
-                request = var_value
-                break
-        if request:
-            break
-
-    if request:
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:]
-            decoded = decode_access_token(token)
-            return {"decoded_token": decoded, "user": current_user.email}
-
-    return {"error": "Could not extract token"}
-
-
-@auth_router.post("/change-password", response_model=MessageResponse)
+@auth_router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
 async def change_password(
     password_data: PasswordChangeSchema,
     current_user: User = Depends(get_current_user),
@@ -159,16 +122,12 @@ async def change_password(
 
     # Verify current password
     if not verify_password(password_data.current_password, current_user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect",
-        )
+        raise_bad_request("Current password is incorrect")
 
     # Update password
     new_password_hash = get_password_hash(password_data.new_password)
-    user_repo.update_password_hash(current_user.id, new_password_hash)
-
-    return MessageResponse(message="Password changed successfully")
+    if not user_repo.update_password_hash(current_user.id, new_password_hash):
+        raise_bad_request("Failed to update password")
 
 
 # User Management Routes
@@ -178,8 +137,8 @@ async def change_password(
 async def list_users(
     role: Optional[str] = Query(None, description="Filter by role"),
     active: Optional[bool] = Query(None, description="Filter by active status"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -202,8 +161,8 @@ async def list_users(
 @router.get("/search", response_model=list[UserListResponseSchema])
 async def search_users(
     q: str = Query(..., min_length=1, description="Search term"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -224,10 +183,7 @@ async def get_user(
     user = user_repo.get_by_id(user_id)
 
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User not found with ID: {user_id}",
-        )
+        raise_not_found(f"User not found with ID: {user_id}")
 
     return user
 
@@ -243,40 +199,23 @@ async def update_user(
     user_repo = UserRepository(db)
 
     # Check if user exists
-    existing_user = user_repo.get_by_id(user_id)
-    if not existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User not found with ID: {user_id}",
-        )
+    existing_user = ensure_exists(user_repo.get_by_id(user_id), "User", user_id)
 
     # Authorization: users can update themselves, admins can update anyone
     if current_user.id != user_id and current_user.role != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to update this user",
-        )
+        raise_forbidden("Not authorized to update this user")
 
     # Non-admins cannot change their role or active status
     if current_user.role != "admin":
         if user_data.role is not None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only admins can change user roles",
-            )
+            raise_forbidden("Only admins can change user roles")
         if user_data.active is not None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only admins can change active status",
-            )
+            raise_forbidden("Only admins can change active status")
 
     # If email is being updated, check for duplicates
     if user_data.email and user_data.email != existing_user.email:
         if user_repo.email_exists(user_data.email):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Email {user_data.email} is already in use",
-            )
+            raise_bad_request("Email {user_data.email} is already in use")
 
     # Handle password update
     user_dict = user_data.model_dump(exclude_unset=True)
@@ -284,12 +223,12 @@ async def update_user(
         user_dict["password_hash"] = get_password_hash(user_dict.pop("password"))
 
     # Update user
-    user = user_repo.update(user_id, user_dict, user_id=current_user.id)
+    user = user_repo.update(user_id, user_dict, updated_by=current_user.id)
 
     return user
 
 
-@router.post("/{user_id}/deactivate", response_model=MessageResponse)
+@router.post("/{user_id}/deactivate", status_code=status.HTTP_204_NO_CONTENT)
 async def deactivate_user(
     user_id: str,
     db: Session = Depends(get_db),
@@ -298,17 +237,10 @@ async def deactivate_user(
     """Deactivate a user account (admin only)."""
     user_repo = UserRepository(db)
 
-    user = user_repo.deactivate_user(user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User not found with ID: {user_id}",
-        )
-
-    return MessageResponse(message=f"User {user_id} deactivated successfully")
+    ensure_operation_success(user_repo.deactivate_user(user_id), "deactivate", "User")
 
 
-@router.post("/{user_id}/activate", response_model=MessageResponse)
+@router.post("/{user_id}/activate", status_code=status.HTTP_204_NO_CONTENT)
 async def activate_user(
     user_id: str,
     db: Session = Depends(get_db),
@@ -317,17 +249,10 @@ async def activate_user(
     """Activate a user account (admin only)."""
     user_repo = UserRepository(db)
 
-    user = user_repo.activate_user(user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User not found with ID: {user_id}",
-        )
-
-    return MessageResponse(message=f"User {user_id} activated successfully")
+    ensure_operation_success(user_repo.activate_user(user_id), "activate", "User")
 
 
-@router.delete("/{user_id}", response_model=MessageResponse)
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: str,
     db: Session = Depends(get_db),
@@ -337,21 +262,12 @@ async def delete_user(
     user_repo = UserRepository(db)
 
     # Check if user exists
-    user = user_repo.get_by_id(user_id)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User not found with ID: {user_id}",
-        )
+    ensure_exists(user_repo.get_by_id(user_id), "User", user_id)
 
     # Prevent deleting yourself
     if user_id == admin_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot delete your own account",
-        )
+        raise_bad_request("Cannot delete your own account")
 
     # Delete user
-    user_repo.delete(user_id)
-
-    return MessageResponse(message=f"User {user_id} deleted successfully")
+    if not user_repo.delete(user_id):
+        raise_bad_request("Failed to delete user")

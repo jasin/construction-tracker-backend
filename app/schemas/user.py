@@ -77,7 +77,7 @@ class UserResponseSchema(BaseResponseSchema):
     email: str = Field(..., description="User email address")
     name: str = Field(..., description="User full name")
     photo: Optional[str] = Field(None, description="URL to user photo")
-    role: str = Field(..., description="User role")
+    role: UserRole = Field(..., description="User role")
     active: bool = Field(..., description="Whether user account is active")
 
 
@@ -86,7 +86,7 @@ class UserListResponseSchema(BaseResponseSchema):
 
     email: str = Field(..., description="User email address")
     name: str = Field(..., description="User full name")
-    role: str = Field(..., description="User role")
+    role: UserRole = Field(..., description="User role")
     active: bool = Field(..., description="Whether user account is active")
 
 
@@ -102,7 +102,7 @@ class UserLoginResponseSchema(BaseResponseSchema):
 
     email: str = Field(..., description="User email address")
     name: str = Field(..., description="User full name")
-    role: str = Field(..., description="User role")
+    role: UserRole = Field(..., description="User role")
     token: str = Field(..., description="JWT authentication token")
     token_type: str = Field("bearer", description="Token type")
 

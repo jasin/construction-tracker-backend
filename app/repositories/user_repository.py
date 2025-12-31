@@ -63,7 +63,7 @@ class UserRepository(BaseRepository[User]):
         """
         return (
             self.db.query(self.model)
-            .filter(self.model.active == True)
+            .filter(self.model.active)
             .offset(skip)
             .limit(limit)
             .all()
@@ -82,7 +82,7 @@ class UserRepository(BaseRepository[User]):
         """
         return (
             self.db.query(self.model)
-            .filter(self.model.active == False)
+            .filter(~self.model.active)  # SQLAlchemy not operator is the tilde (~)
             .offset(skip)
             .limit(limit)
             .all()
@@ -153,7 +153,9 @@ class UserRepository(BaseRepository[User]):
             .all()
         )
 
-    def deactivate_user(self, user_id: str) -> Optional[User]:
+    def deactivate_user(
+        self, user_id: str, updated_by: Optional[str] = None
+    ) -> Optional[User]:
         """
         Deactivate a user account.
 
@@ -163,14 +165,19 @@ class UserRepository(BaseRepository[User]):
         Returns:
             Updated User object if found, None otherwise
         """
-        user = self.get_by_id(user_id)
+        # Remove later for cleanup
+        """user = self.get_by_id(user_id)
         if user:
             user.active = False
             self.db.commit()
             self.db.refresh(user)
-        return user
+        return user"""
 
-    def activate_user(self, user_id: str) -> Optional[User]:
+        return self.update(user_id, {"active": False}, updated_by=updated_by)
+
+    def activate_user(
+        self, user_id: str, updated_by: Optional[str] = None
+    ) -> Optional[User]:
         """
         Activate a user account.
 
@@ -180,14 +187,19 @@ class UserRepository(BaseRepository[User]):
         Returns:
             Updated User object if found, None otherwise
         """
-        user = self.get_by_id(user_id)
+        # Remove later for cleanup
+        """user = self.get_by_id(user_id)
         if user:
             user.active = True
             self.db.commit()
             self.db.refresh(user)
-        return user
+        return user"""
 
-    def update_password_hash(self, user_id: str, password_hash: str) -> Optional[User]:
+        return self.update(user_id, {"active": True}, updated_by=updated_by)
+
+    def update_password_hash(
+        self, user_id: str, password_hash: str, updated_by: Optional[str] = None
+    ) -> Optional[User]:
         """
         Update a user's password hash.
 
@@ -198,9 +210,14 @@ class UserRepository(BaseRepository[User]):
         Returns:
             Updated User object if found, None otherwise
         """
-        user = self.get_by_id(user_id)
+        # Remove later for cleanup
+        """user = self.get_by_id(user_id)
         if user:
             user.password_hash = password_hash
             self.db.commit()
             self.db.refresh(user)
-        return user
+        return user"""
+
+        return self.update(
+            user_id, {"password_hash": password_hash}, updated_by=updated_by
+        )

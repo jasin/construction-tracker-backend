@@ -22,7 +22,7 @@ class ChangeOrderCreateSchema(BaseCreateSchema):
         ChangeOrderStatus.PENDING, description="Change order status"
     )
     project_id: str = Field(..., description="Project ID this change order belongs to")
-    cost: Optional[float] = Field(None, description="Change order cost impact")
+    cost: Optional[float] = Field(None, ge=0, description="Change order cost impact")
     requested_by: Optional[str] = Field(
         None, description="User ID who requested the change order"
     )
@@ -52,7 +52,7 @@ class ChangeOrderUpdateSchema(BaseUpdateSchema):
     project_id: Optional[str] = Field(
         None, description="Project ID this change order belongs to"
     )
-    cost: Optional[float] = Field(None, description="Change order cost impact")
+    cost: Optional[float] = Field(None, ge=0, description="Change order cost impact")
     requested_by: Optional[str] = Field(
         None, description="User ID who requested the change order"
     )
@@ -76,9 +76,9 @@ class ChangeOrderResponseSchema(BaseResponseSchema):
 
     title: str = Field(..., description="Change order title")
     description: Optional[str] = Field(None, description="Change order description")
-    status: str = Field(..., description="Change order status")
+    status: ChangeOrderStatus = Field(..., description="Change order status")
     project_id: str = Field(..., description="Project ID this change order belongs to")
-    cost: Optional[float] = Field(None, description="Change order cost impact")
+    cost: Optional[float] = Field(None, ge=0, description="Change order cost impact")
     requested_by: Optional[str] = Field(
         None, description="User ID who requested the change order"
     )
@@ -93,9 +93,9 @@ class ChangeOrderListResponseSchema(BaseResponseSchema):
     """Simplified schema for change order lists."""
 
     title: str = Field(..., description="Change order title")
-    status: str = Field(..., description="Change order status")
+    status: ChangeOrderStatus = Field(..., description="Change order status")
     project_id: str = Field(..., description="Project ID this change order belongs to")
-    cost: Optional[float] = Field(None, description="Change order cost impact")
+    cost: Optional[float] = Field(None, ge=0, description="Change order cost impact")
     requested_by: Optional[str] = Field(
         None, description="User ID who requested the change order"
     )

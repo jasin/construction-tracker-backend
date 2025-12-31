@@ -12,6 +12,7 @@ class RFI(BaseModel):
     __tablename__ = "rfis"
 
     title: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     priority: Mapped[str] = mapped_column(
         String, nullable=False, default="medium"
     )  # critical, high, medium, low
@@ -20,7 +21,7 @@ class RFI(BaseModel):
     )  # open, pending, answered, closed
     project_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
     submitted_by: Mapped[Optional[str]] = mapped_column(
-        String, nullable=True
+        String, nullable=True, index=True
     )  # User ID
     submitted_date: Mapped[Optional[str]] = mapped_column(
         String, nullable=True

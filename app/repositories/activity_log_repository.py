@@ -210,7 +210,7 @@ class ActivityLogRepository(BaseRepository[ActivityLog]):
 
     def log_activity(
         self,
-        project_id: str,
+        project_id: Optional[str],
         user_id: str,
         user_name: str,
         action: str,
@@ -218,12 +218,12 @@ class ActivityLogRepository(BaseRepository[ActivityLog]):
         entity_id: str,
         description: str,
         additional_data: Optional[dict] = None,
-    ) -> ActivityLog:
+    ) -> Optional[ActivityLog]:
         """
         Create a new activity log entry.
 
         Args:
-            project_id: Project ID
+            project_id: Project ID (if None, activity logging is silently skipped)
             user_id: User ID performing the action
             user_name: User name for display
             action: Action type (e.g., 'created', 'updated', 'deleted')
@@ -233,8 +233,13 @@ class ActivityLogRepository(BaseRepository[ActivityLog]):
             additional_data: Optional additional data as JSON
 
         Returns:
-            Created ActivityLog object
+            Created ActivityLog object, or None if project_id was None
         """
+        # Guard clause: fail fast if project_id is None
+        # This allows callers to pass entity.project_id without None checks
+        if project_id is None:
+            return None
+
         from datetime import datetime
 
         activity_log = ActivityLog(

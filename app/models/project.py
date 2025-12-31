@@ -1,6 +1,6 @@
 from typing import Optional
 
-from sqlalchemy import String
+from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import BaseModel
@@ -28,16 +28,16 @@ class Project(BaseModel):
         String, nullable=True
     )  # ISO 8601 date string
     project_manager: Mapped[Optional[str]] = mapped_column(
-        String, nullable=True
+        String, nullable=True, index=True
     )  # User ID
     superintendent: Mapped[Optional[str]] = mapped_column(
-        String, nullable=True
+        String, nullable=True, index=True
     )  # User ID
     architect: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     address: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    contract_signed: Mapped[Optional[bool]] = mapped_column(
-        nullable=True, default=False
+    contract_signed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
     )
 
     def __repr__(self):

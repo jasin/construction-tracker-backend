@@ -5,20 +5,24 @@ API endpoints for task management.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
 from app.repositories import ActivityLogRepository, TaskRepository
 from app.schemas import (
-    MessageResponse,
     TaskCreateSchema,
     TaskListResponseSchema,
     TaskResponseSchema,
     TaskUpdateSchema,
 )
 from app.utils.dependencies import get_current_user
+from app.utils.exceptions import (
+    ensure_exists,
+    ensure_operation_success,
+    raise_bad_request,
+)
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -123,13 +127,7 @@ async def get_task(
 ):
     """Get a specific task by ID."""
     task_repo = TaskRepository(db)
-    task = task_repo.get_by_id(task_id)
-
-    if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task not found with ID: {task_id}",
-        )
+    task = ensure_exists(task_repo.get_by_id(task_id), "Task", task_id)
 
     return task
 
@@ -145,16 +143,16 @@ async def create_task(
     activity_repo = ActivityLogRepository(db)
 
     # Create task
-    task = task_repo.create(task_data.model_dump(), created_by=str(current_user.id))
+    task = task_repo.create(task_data.model_dump(), created_by=current_user.id)
 
     # Log activity
     activity_repo.log_activity(
         project_id=str(task.project_id),
-        user_id=str(current_user.id),
-        user_name=str(current_user.name),
+        user_id=current_user.id,
+        user_name=current_user.name,
         action="task_created",
         entity_type="task",
-        entity_id=str(task.id),
+        entity_id=task.id,
         description=f"Created task: {task.title}",
         additional_data={"priority": task.priority, "status": task.status},
     )
@@ -174,37 +172,35 @@ async def update_task(
     activity_repo = ActivityLogRepository(db)
 
     # Check if task exists
-    existing_task = task_repo.get_by_id(task_id)
-    if not existing_task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task not found with ID: {task_id}",
-        )
+    ensure_exists(task_repo.get_by_id(task_id), "Task", task_id)
 
     # Update task
-    task = task_repo.update(
-        task_id,
-        task_data.model_dump(exclude_unset=True),
-        updated_by=str(current_user.id),
+    task = ensure_operation_success(
+        task_repo.update(
+            task_id,
+            task_data.model_dump(exclude_unset=True),
+            updated_by=current_user.id,
+        ),
+        "update",
+        "Task",
     )
 
     # Log activity
-    if task:
-        activity_repo.log_activity(
-            project_id=str(task.project_id),
-            user_id=str(current_user.id),
-            user_name=str(current_user.name),
-            action="task_updated",
-            entity_type="task",
-            entity_id=str(task.id),
-            description=f"Updated task: {task.title}",
-            additional_data=task_data.model_dump(exclude_unset=True),
-        )
+    activity_repo.log_activity(
+        project_id=str(task.project_id),
+        user_id=current_user.id,
+        user_name=current_user.name,
+        action="task_updated",
+        entity_type="task",
+        entity_id=task.id,
+        description=f"Updated task: {task.title}",
+        additional_data=task_data.model_dump(exclude_unset=True),
+    )
 
     return task
 
 
-@router.delete("/{task_id}", response_model=MessageResponse)
+@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_task(
     task_id: str,
     db: Session = Depends(get_db),
@@ -215,26 +211,20 @@ async def delete_task(
     activity_repo = ActivityLogRepository(db)
 
     # Check if task exists
-    task = task_repo.get_by_id(task_id)
-    if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Task not found with ID: {task_id}",
-        )
+    task = ensure_exists(task_repo.get_by_id(task_id), "Task", task_id)
 
     # Log activity before deletion
     activity_repo.log_activity(
         project_id=str(task.project_id),
-        user_id=str(current_user.id),
-        user_name=str(current_user.name),
+        user_id=current_user.id,
+        user_name=current_user.name,
         action="task_deleted",
         entity_type="task",
-        entity_id=str(task.id),
+        entity_id=task.id,
         description=f"Deleted task: {task.title}",
         additional_data={"priority": task.priority, "status": task.status},
     )
 
     # Delete task
-    task_repo.delete(task_id)
-
-    return MessageResponse(message=f"Task {task_id} deleted successfully", success=True)
+    if not task_repo.delete(task_id):
+        raise_bad_request("Failed to delete task")

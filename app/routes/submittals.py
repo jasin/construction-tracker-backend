@@ -5,20 +5,24 @@ API endpoints for submittal management.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
 from app.repositories import ActivityLogRepository, SubmittalRepository
 from app.schemas import (
-    MessageResponse,
     SubmittalCreateSchema,
     SubmittalListResponseSchema,
     SubmittalResponseSchema,
     SubmittalUpdateSchema,
 )
 from app.utils.dependencies import get_current_user
+from app.utils.exceptions import (
+    ensure_exists,
+    ensure_operation_success,
+    raise_bad_request,
+)
 
 router = APIRouter(prefix="/submittals", tags=["submittals"])
 
@@ -29,8 +33,8 @@ async def list_submittals(
     status: Optional[str] = Query(None),
     submitted_by: Optional[str] = Query(None),
     reviewed_by: Optional[str] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -68,8 +72,8 @@ async def list_submittals(
 @router.get("/pending-review", response_model=list[SubmittalListResponseSchema])
 async def list_pending_review(
     project_id: Optional[str] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -83,10 +87,10 @@ async def list_pending_review(
 
 @router.get("/search", response_model=list[SubmittalListResponseSchema])
 async def search_submittals(
-    q: str = Query(..., min_length=1),
+    q: str = Query(..., min_length=1, description="Search term"),
     project_id: Optional[str] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -106,13 +110,9 @@ async def get_submittal(
 ):
     """Get a specific submittal by ID."""
     submittal_repo = SubmittalRepository(db)
-    submittal = submittal_repo.get_by_id(submittal_id)
-
-    if not submittal:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Submittal not found with ID: {submittal_id}",
-        )
+    submittal = ensure_exists(
+        submittal_repo.get_by_id(submittal_id), "Submittal", submittal_id
+    )
 
     return submittal
 
@@ -130,7 +130,7 @@ async def create_submittal(
     activity_repo = ActivityLogRepository(db)
 
     submittal = submittal_repo.create(
-        submittal_data.model_dump(), user_id=current_user.id
+        submittal_data.model_dump(), created_by=current_user.id
     )
 
     activity_repo.log_activity(
@@ -158,17 +158,16 @@ async def update_submittal(
     submittal_repo = SubmittalRepository(db)
     activity_repo = ActivityLogRepository(db)
 
-    existing_submittal = submittal_repo.get_by_id(submittal_id)
-    if not existing_submittal:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Submittal not found with ID: {submittal_id}",
-        )
+    ensure_exists(submittal_repo.get_by_id(submittal_id), "Submittal", submittal_id)
 
-    submittal = submittal_repo.update(
-        submittal_id,
-        submittal_data.model_dump(exclude_unset=True),
-        user_id=current_user.id,
+    submittal = ensure_operation_success(
+        submittal_repo.update(
+            submittal_id,
+            submittal_data.model_dump(exclude_unset=True),
+            updated_by=current_user.id,
+        ),
+        "update",
+        "Submittal",
     )
 
     activity_repo.log_activity(
@@ -185,7 +184,7 @@ async def update_submittal(
     return submittal
 
 
-@router.delete("/{submittal_id}", response_model=MessageResponse)
+@router.delete("/{submittal_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_submittal(
     submittal_id: str,
     db: Session = Depends(get_db),
@@ -195,12 +194,9 @@ async def delete_submittal(
     submittal_repo = SubmittalRepository(db)
     activity_repo = ActivityLogRepository(db)
 
-    submittal = submittal_repo.get_by_id(submittal_id)
-    if not submittal:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Submittal not found with ID: {submittal_id}",
-        )
+    submittal = ensure_exists(
+        submittal_repo.get_by_id(submittal_id), "Submittal", submittal_id
+    )
 
     activity_repo.log_activity(
         project_id=submittal.project_id,
@@ -213,6 +209,5 @@ async def delete_submittal(
         additional_data={"status": submittal.status},
     )
 
-    submittal_repo.delete(submittal_id)
-
-    return MessageResponse(message=f"Submittal {submittal_id} deleted successfully")
+    if not submittal_repo.delete(submittal_id):
+        raise_bad_request("Failed to delete submittal")

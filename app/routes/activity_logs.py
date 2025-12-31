@@ -5,18 +5,15 @@ API endpoints for activity log retrieval and management.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
 from app.repositories import ActivityLogRepository
-from app.schemas import (
-    ActivityLogListResponseSchema,
-    ActivityLogResponseSchema,
-    MessageResponse,
-)
+from app.schemas import ActivityLogListResponseSchema, ActivityLogResponseSchema
 from app.utils.dependencies import get_current_user, require_admin
+from app.utils.exceptions import ensure_exists, raise_bad_request
 
 router = APIRouter(prefix="/activity-logs", tags=["activity-logs"])
 
@@ -30,8 +27,8 @@ async def list_activity_logs(
     entity_id: Optional[str] = Query(None),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -128,17 +125,12 @@ async def get_activity_log(
     """Get a specific activity log by ID."""
     activity_repo = ActivityLogRepository(db)
     log = activity_repo.get_by_id(log_id)
-
-    if not log:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Activity log not found with ID: {log_id}",
-        )
+    ensure_exists(log, "Log", log_id)
 
     return log
 
 
-@router.delete("/cleanup", response_model=MessageResponse)
+@router.delete("/cleanup", status_code=status.HTTP_204_NO_CONTENT)
 async def cleanup_old_logs(
     days_to_keep: int = Query(
         90, ge=1, le=365, description="Number of days of logs to keep"
@@ -155,10 +147,7 @@ async def cleanup_old_logs(
     """
     activity_repo = ActivityLogRepository(db)
 
-    deleted_count = activity_repo.delete_old_logs(
+    if not activity_repo.delete_old_logs(
         days_to_keep=days_to_keep, project_id=project_id
-    )
-
-    return MessageResponse(
-        message=f"Deleted {deleted_count} activity logs older than {days_to_keep} days"
-    )
+    ):
+        raise_bad_request("Failed to delete old logs")

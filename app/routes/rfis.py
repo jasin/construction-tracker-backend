@@ -5,20 +5,24 @@ API endpoints for RFI (Request for Information) management.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.user import User
 from app.repositories import ActivityLogRepository, RFIRepository
 from app.schemas import (
-    MessageResponse,
     RFICreateSchema,
     RFIListResponseSchema,
     RFIResponseSchema,
     RFIUpdateSchema,
 )
 from app.utils.dependencies import get_current_user
+from app.utils.exceptions import (
+    ensure_exists,
+    ensure_operation_success,
+    raise_bad_request,
+)
 
 router = APIRouter(prefix="/rfis", tags=["rfis"])
 
@@ -30,8 +34,8 @@ async def list_rfis(
     priority: Optional[str] = Query(None, description="Filter by priority"),
     submitted_by: Optional[str] = Query(None, description="Filter by submitter"),
     assigned_to: Optional[str] = Query(None, description="Filter by assigned user"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -73,8 +77,8 @@ async def list_rfis(
 @router.get("/open", response_model=list[RFIListResponseSchema])
 async def list_open_rfis(
     project_id: Optional[str] = Query(None, description="Filter by project ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -87,8 +91,8 @@ async def list_open_rfis(
 @router.get("/overdue", response_model=list[RFIListResponseSchema])
 async def list_overdue_rfis(
     project_id: Optional[str] = Query(None, description="Filter by project ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -102,8 +106,8 @@ async def list_overdue_rfis(
 async def list_rfis_due_soon(
     days: int = Query(7, ge=1, le=90, description="Number of days ahead to look"),
     project_id: Optional[str] = Query(None, description="Filter by project ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -119,8 +123,8 @@ async def list_rfis_due_soon(
 async def search_rfis(
     q: str = Query(..., min_length=1, description="Search term"),
     project_id: Optional[str] = Query(None, description="Filter by project ID"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=500),
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(100, ge=1, le=500, description="Maximum number of records"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -140,11 +144,7 @@ async def get_rfi(
     rfi_repo = RFIRepository(db)
     rfi = rfi_repo.get_by_id(rfi_id)
 
-    if not rfi:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"RFI not found with ID: {rfi_id}",
-        )
+    ensure_exists(rfi, "RFI", rfi_id)
 
     return rfi
 
@@ -160,7 +160,7 @@ async def create_rfi(
     activity_repo = ActivityLogRepository(db)
 
     # Create RFI
-    rfi = rfi_repo.create(rfi_data.model_dump(), user_id=current_user.id)
+    rfi = rfi_repo.create(rfi_data.model_dump(), created_by=current_user.id)
 
     # Log activity
     activity_repo.log_activity(
@@ -190,20 +190,20 @@ async def update_rfi(
 
     # Check if RFI exists
     existing_rfi = rfi_repo.get_by_id(rfi_id)
-    if not existing_rfi:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"RFI not found with ID: {rfi_id}",
-        )
+    ensure_exists(existing_rfi, "RFI", rfi_id)
 
     # Update RFI
-    rfi = rfi_repo.update(
-        rfi_id, rfi_data.model_dump(exclude_unset=True), user_id=current_user.id
+    rfi = ensure_operation_success(
+        rfi_repo.update(
+            rfi_id, rfi_data.model_dump(exclude_unset=True), updated_by=current_user.id
+        ),
+        "update",
+        "RFI",
     )
 
     # Log activity
     activity_repo.log_activity(
-        project_id=rfi.project_id,
+        project_id=str(rfi.project_id),
         user_id=current_user.id,
         user_name=current_user.name,
         action="rfi_updated",
@@ -216,7 +216,7 @@ async def update_rfi(
     return rfi
 
 
-@router.delete("/{rfi_id}", response_model=MessageResponse)
+@router.delete("/{rfi_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_rfi(
     rfi_id: str,
     db: Session = Depends(get_db),
@@ -226,13 +226,8 @@ async def delete_rfi(
     rfi_repo = RFIRepository(db)
     activity_repo = ActivityLogRepository(db)
 
-    # Check if RFI exists
-    rfi = rfi_repo.get_by_id(rfi_id)
-    if not rfi:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"RFI not found with ID: {rfi_id}",
-        )
+    # Check if RFI exists and get non-None reference
+    rfi = ensure_exists(rfi_repo.get_by_id(rfi_id), "RFI", rfi_id)
 
     # Log activity before deletion
     activity_repo.log_activity(
@@ -247,6 +242,5 @@ async def delete_rfi(
     )
 
     # Delete RFI
-    rfi_repo.delete(rfi_id)
-
-    return MessageResponse(message=f"RFI {rfi_id} deleted successfully")
+    if not rfi_repo.delete(rfi_id):
+        raise_bad_request("Failed to delete RFI")
