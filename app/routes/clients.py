@@ -105,7 +105,7 @@ async def create_client(
     return client
 
 
-@router.put("/{client_id}", response_model=ClientResponseSchema)
+@router.patch("/{client_id}", response_model=ClientResponseSchema)
 async def update_client(
     client_id: str,
     client_data: ClientUpdateSchema,
